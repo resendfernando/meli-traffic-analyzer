@@ -1,5 +1,11 @@
 # Traffic Analyzer — Challenge 01
 
+> **Challenge 01 — Network Traffic Analyzer**
+>
+> Este README documenta a implementação do primeiro exercício do desafio técnico.
+>
+> **Challenge 02:** [AI-Assisted Infrastructure Log Analysis](docs/QUESTION-02-AI-LOG-ANALYSIS.md)
+
 Aplicação em Python para captura, persistência e análise básica de tráfego de rede.
 
 A solução captura pacotes de uma interface de rede, normaliza os dados relevantes, persiste as evidências em SQLite e apresenta automaticamente estatísticas sobre o tráfego observado.
@@ -610,6 +616,7 @@ Limites atuais e critérios para evolução.
 │   ├── architecture.md
 │   ├── executive-summary.md
 │   ├── production-readiness.md
+│   ├── QUESTION-02-AI-LOG-ANALYSIS.md
 │   ├── runbook.md
 │   └── testing-strategy.md
 ├── tests/

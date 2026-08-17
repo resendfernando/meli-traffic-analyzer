@@ -36,6 +36,8 @@ O que seria necessário?
 | Estatísticas | Implementado |
 | Containerização | Docker |
 | Testes automatizados | Implementado |
+| Continuous Integration | GitHub Actions |
+| Validação automatizada | Testes + Docker build |
 | Validação com tráfego real | Realizada |
 | Documentação operacional | Implementado |
 | Runbook | Implementado |
@@ -448,17 +450,29 @@ Alta disponibilidade não deve ser adicionada sem que exista um requisito de dis
 
 ### Estado atual
 
+A solução possui uma baseline reproduzível de build e validação:
+
+```text
+Source
+   ↓
+GitHub Actions
+   ↓
+Automated Tests
+   +
+Docker Build
+```
+
+O Docker Compose continua sendo suficiente para execução controlada da solução:
+
 ```text
 Docker Compose
 ```
 
-é suficiente para construir e executar a solução de maneira reproduzível.
+A existência de CI não implica que deployment automatizado seja necessário para o escopo atual.
 
 ### Evolução
 
-A plataforma de deployment deveria acompanhar a necessidade operacional.
-
-Uma possível evolução poderia incluir:
+Caso a solução se transforme em um serviço operacional, o fluxo poderia evoluir para:
 
 ```text
 Source
@@ -474,15 +488,71 @@ Artifact Registry
 Deployment
 ```
 
+A plataforma de deployment deveria acompanhar a necessidade operacional.
+
 A utilização de uma plataforma de orquestração só faria sentido caso requisitos de escala, disponibilidade ou operação justificassem sua adoção.
+
+O objetivo é evitar introduzir infraestrutura de deployment antes de existir um requisito operacional que a justifique.
 
 ---
 
 ## 14. CI/CD
 
-Uma evolução recomendada seria automatizar as validações já realizadas manualmente.
+### Estado atual
 
-Exemplo:
+O projeto possui Continuous Integration implementada com GitHub Actions.
+
+O pipeline é executado automaticamente em:
+
+```text
+Push → main
+Pull Request
+```
+
+Atualmente, duas validações independentes são executadas:
+
+```text
+Commit
+   ↓
+GitHub Actions
+   ├── Automated Tests
+   │       ↓
+   │    pytest
+   │       ↓
+   │    21 tests
+   │
+   └── Docker Build
+           ↓
+      reproducible image
+```
+
+Isso cria uma barreira automatizada contra duas classes importantes de regressão:
+
+1. alteração de comportamento detectável pela suíte de testes;
+2. alteração que impeça a construção da imagem Docker.
+
+O pipeline foi validado com sucesso, com os jobs de testes automatizados e Docker build concluídos sem falhas.
+
+### O que a CI atual não pretende resolver
+
+A implementação atual é propositalmente simples.
+
+Ainda não fazem parte do pipeline:
+
+- deployment automatizado;
+- publicação de artefatos;
+- dependency scanning;
+- container vulnerability scanning;
+- static analysis;
+- ambientes de homologação;
+- estratégias de rollback;
+- aprovação de deployment.
+
+Esses controles devem ser adicionados de acordo com risco, criticidade e modelo operacional.
+
+### Evolução possível
+
+Caso a solução avance para produção:
 
 ```text
 Commit
@@ -500,16 +570,11 @@ Artifact
 Deployment
 ```
 
-O objetivo seria reduzir diferenças entre:
+A automação deve crescer proporcionalmente à responsabilidade operacional da solução.
 
-```text
-desenvolvimento
-teste
-entrega
-produção
-```
+O objetivo não é maximizar etapas no pipeline.
 
-e impedir que versões com validações quebradas avancem.
+É garantir que cada etapa reduza um risco conhecido.
 
 ---
 
@@ -649,8 +714,10 @@ Antes de considerar uma implantação produtiva:
 
 ### Qualidade
 
-- [ ] testes automatizados
-- [ ] testes de integração
+- [x] testes automatizados
+- [x] CI básica
+- [x] Docker build automatizado
+- [ ] testes de integração dependentes de ambiente automatizados
 - [ ] baseline de performance
 - [ ] testes de falha quando aplicável
 
@@ -711,6 +778,8 @@ Recuperação
 ```
 
 e tomar decisões proporcionais a eles.
+
+A implementação já estabelece uma baseline de engenharia com testes automatizados, containerização, documentação operacional e Continuous Integration, sem confundir esses controles com prontidão completa para produção.
 
 A arquitetura atual resolve o requisito com baixa complexidade e mantém fronteiras que permitem evolução futura.
 

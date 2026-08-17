@@ -4,13 +4,7 @@ import sys
 from scapy.all import get_if_list, sniff
 
 from app.capture import normalize_packet
-
-
-def handle_packet(packet):
-    record = normalize_packet(packet)
-
-    if record is not None:
-        print(record)
+from app.database import PacketDatabase
 
 
 def validate_interface(interface: str) -> None:
@@ -37,30 +31,59 @@ def validate_interface(interface: str) -> None:
 
 def capture(
     interface: str,
+    database_path: str,
     count: int | None = None,
     duration: int | None = None,
 ):
     validate_interface(interface)
 
-    if duration is not None:
-        print(
-            f"Capturing IP traffic on '{interface}' "
-            f"for {duration} seconds..."
-        )
-    else:
-        print(
-            f"Capturing {count} IP packets "
-            f"on interface '{interface}'..."
+    database = PacketDatabase(database_path)
+
+    captured_packets = 0
+
+    def handle_packet(packet):
+        nonlocal captured_packets
+
+        record = normalize_packet(packet)
+
+        if record is None:
+            return
+
+        database.insert_packet(record)
+        captured_packets += 1
+
+        print(record)
+
+    try:
+        if duration is not None:
+            print(
+                f"Capturing IP traffic on '{interface}' "
+                f"for {duration} seconds..."
+            )
+        else:
+            print(
+                f"Capturing {count} IP packets "
+                f"on interface '{interface}'..."
+            )
+
+        print(f"Database: {database_path}\n")
+
+        sniff(
+            iface=interface,
+            prn=handle_packet,
+            store=False,
+            count=count or 0,
+            timeout=duration,
+            filter="ip or ip6",
         )
 
-    sniff(
-        iface=interface,
-        prn=handle_packet,
-        store=False,
-        count=count or 0,
-        timeout=duration,
-        filter="ip or ip6",
-    )
+    finally:
+        total_stored = database.count_packets()
+        database.close()
+
+        print("\nCapture finished.")
+        print(f"Packets captured this run: {captured_packets}")
+        print(f"Packets stored in database: {total_stored}")
 
 
 def parse_args():
@@ -72,6 +95,15 @@ def parse_args():
         "--interface",
         required=True,
         help="Network interface used for packet capture.",
+    )
+
+    parser.add_argument(
+        "--database",
+        default="data/traffic.db",
+        help=(
+            "SQLite database path "
+            "(default: data/traffic.db)."
+        ),
     )
 
     capture_mode = parser.add_mutually_exclusive_group()
@@ -103,6 +135,7 @@ def main():
     try:
         capture(
             interface=args.interface,
+            database_path=args.database,
             count=count,
             duration=duration,
         )

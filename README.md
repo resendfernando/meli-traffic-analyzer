@@ -176,6 +176,8 @@ docker compose run --rm traffic-analyzer \
 
 `--duration` e `--count` são mutuamente exclusivos.
 
+Ambos aceitam somente valores inteiros maiores que zero. Valores zero, negativos ou não inteiros são rejeitados antes do início da captura.
+
 Quando nenhum deles é informado, a aplicação utiliza:
 
 ```text
@@ -441,7 +443,9 @@ Execute:
 pytest -q
 ```
 
-A suíte cobre:
+A suíte possui atualmente **21 testes automatizados**.
+
+A cobertura inclui:
 
 - IPv4;
 - IPv6;
@@ -454,9 +458,15 @@ A suíte cobre:
 - múltiplos registros;
 - agregação por protocolo;
 - ranking por bytes;
-- isolamento da captura atual.
+- isolamento da captura atual;
+- validação dos parâmetros da CLI;
+- aceitação de valores positivos para `--count` e `--duration`;
+- rejeição de zero e valores negativos;
+- rejeição de valores não inteiros.
 
 Além dos testes automatizados, a solução foi validada com tráfego real dentro do Docker.
+
+Também foram executados testes funcionais dos principais fluxos da CLI, incluindo captura por duração, captura por quantidade, modo verbose, banco alternativo, interface inexistente e argumentos mutuamente exclusivos.
 
 ---
 
@@ -483,6 +493,10 @@ Packets captured this run
 ==
 Packets stored this run
 ```
+
+Esse comportamento foi validado em múltiplas execuções.
+
+Também foi validada a persistência histórica entre execuções independentes, mantendo o `Current Capture Summary` isolado da visão histórica do banco.
 
 ---
 
@@ -532,7 +546,8 @@ Limitações conhecidas:
 - ausência de fila assíncrona;
 - ausência de processamento distribuído;
 - ausência de monitoramento externo;
-- captura limitada ao tráfego visível na interface selecionada.
+- captura limitada ao tráfego visível na interface selecionada;
+- a visibilidade de interfaces em ambientes virtualizados ou containerizados depende da rede exposta pelo runtime.
 
 Esses limites são documentados e não impedem o atendimento ao escopo atual.
 
@@ -621,7 +636,8 @@ Limites atuais e critérios para evolução.
 │   └── testing-strategy.md
 ├── tests/
 │   ├── test_capture.py
-│   └── test_database.py
+│   ├── test_database.py
+│   └── test_sniffer.py
 ├── .dockerignore
 ├── .gitignore
 ├── compose.yaml

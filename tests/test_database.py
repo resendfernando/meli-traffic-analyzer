@@ -47,7 +47,10 @@ def test_persist_packet_fields():
     stored_packet = rows[0]
 
     assert stored_packet["source_ip"] == "10.0.0.10"
-    assert stored_packet["destination_ip"] == "10.0.0.20"
+    assert (
+        stored_packet["destination_ip"]
+        == "10.0.0.20"
+    )
     assert stored_packet["protocol"] == "TCP"
     assert stored_packet["packet_size"] == 512
     assert stored_packet["captured_at"] is not None
@@ -91,10 +94,30 @@ def test_count_by_protocol():
     database = PacketDatabase(":memory:")
 
     packets = [
-        PacketRecord("10.0.0.1", "10.0.0.2", "TCP", 100),
-        PacketRecord("10.0.0.1", "10.0.0.3", "TCP", 200),
-        PacketRecord("10.0.0.2", "10.0.0.3", "UDP", 300),
-        PacketRecord("10.0.0.3", "10.0.0.1", "ICMP", 80),
+        PacketRecord(
+            "10.0.0.1",
+            "10.0.0.2",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.1",
+            "10.0.0.3",
+            "TCP",
+            200,
+        ),
+        PacketRecord(
+            "10.0.0.2",
+            "10.0.0.3",
+            "UDP",
+            300,
+        ),
+        PacketRecord(
+            "10.0.0.3",
+            "10.0.0.1",
+            "ICMP",
+            80,
+        ),
     ]
 
     for packet in packets:
@@ -103,68 +126,199 @@ def test_count_by_protocol():
     results = database.count_by_protocol()
 
     assert [
-        (row["protocol"], row["packet_count"])
+        (
+            row["protocol"],
+            row["packet_count"],
+            row["total_bytes"],
+        )
         for row in results
     ] == [
-        ("TCP", 2),
-        ("ICMP", 1),
-        ("UDP", 1),
+        ("TCP", 2, 300),
+        ("ICMP", 1, 80),
+        ("UDP", 1, 300),
     ]
 
     database.close()
 
 
-def test_top_source_ips():
+def test_top_source_ips_are_ranked_by_bytes():
     database = PacketDatabase(":memory:")
 
     packets = [
-        PacketRecord("10.0.0.1", "8.8.8.8", "TCP", 100),
-        PacketRecord("10.0.0.1", "8.8.8.8", "TCP", 100),
-        PacketRecord("10.0.0.1", "1.1.1.1", "UDP", 100),
-        PacketRecord("10.0.0.2", "8.8.8.8", "TCP", 100),
-        PacketRecord("10.0.0.2", "1.1.1.1", "UDP", 100),
-        PacketRecord("10.0.0.3", "8.8.8.8", "TCP", 100),
+        PacketRecord(
+            "10.0.0.1",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.1",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.1",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.2",
+            "8.8.8.8",
+            "TCP",
+            1000,
+        ),
+        PacketRecord(
+            "10.0.0.3",
+            "8.8.8.8",
+            "TCP",
+            200,
+        ),
     ]
 
     for packet in packets:
         database.insert_packet(packet)
 
-    results = database.top_source_ips(limit=2)
+    results = database.top_source_ips(limit=3)
 
-    assert len(results) == 2
+    assert len(results) == 3
 
-    assert results[0]["source_ip"] == "10.0.0.1"
-    assert results[0]["packet_count"] == 3
+    assert results[0]["source_ip"] == "10.0.0.2"
+    assert results[0]["total_bytes"] == 1000
+    assert results[0]["packet_count"] == 1
 
-    assert results[1]["source_ip"] == "10.0.0.2"
-    assert results[1]["packet_count"] == 2
+    assert results[1]["source_ip"] == "10.0.0.1"
+    assert results[1]["total_bytes"] == 300
+    assert results[1]["packet_count"] == 3
+
+    assert results[2]["source_ip"] == "10.0.0.3"
+    assert results[2]["total_bytes"] == 200
+    assert results[2]["packet_count"] == 1
 
     database.close()
 
 
-def test_top_destination_ips():
+def test_top_destination_ips_are_ranked_by_bytes():
     database = PacketDatabase(":memory:")
 
     packets = [
-        PacketRecord("10.0.0.1", "8.8.8.8", "TCP", 100),
-        PacketRecord("10.0.0.2", "8.8.8.8", "TCP", 100),
-        PacketRecord("10.0.0.3", "8.8.8.8", "UDP", 100),
-        PacketRecord("10.0.0.1", "1.1.1.1", "UDP", 100),
-        PacketRecord("10.0.0.2", "1.1.1.1", "UDP", 100),
-        PacketRecord("10.0.0.3", "9.9.9.9", "ICMP", 100),
+        PacketRecord(
+            "10.0.0.1",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.2",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.3",
+            "8.8.8.8",
+            "TCP",
+            100,
+        ),
+        PacketRecord(
+            "10.0.0.1",
+            "1.1.1.1",
+            "UDP",
+            1200,
+        ),
+        PacketRecord(
+            "10.0.0.2",
+            "9.9.9.9",
+            "UDP",
+            200,
+        ),
     ]
 
     for packet in packets:
         database.insert_packet(packet)
 
-    results = database.top_destination_ips(limit=2)
+    results = database.top_destination_ips(
+        limit=3
+    )
 
-    assert len(results) == 2
+    assert len(results) == 3
 
-    assert results[0]["destination_ip"] == "8.8.8.8"
-    assert results[0]["packet_count"] == 3
+    assert (
+        results[0]["destination_ip"]
+        == "1.1.1.1"
+    )
+    assert results[0]["total_bytes"] == 1200
+    assert results[0]["packet_count"] == 1
 
-    assert results[1]["destination_ip"] == "1.1.1.1"
-    assert results[1]["packet_count"] == 2
+    assert (
+        results[1]["destination_ip"]
+        == "8.8.8.8"
+    )
+    assert results[1]["total_bytes"] == 300
+    assert results[1]["packet_count"] == 3
+
+    assert (
+        results[2]["destination_ip"]
+        == "9.9.9.9"
+    )
+    assert results[2]["total_bytes"] == 200
+    assert results[2]["packet_count"] == 1
+
+    database.close()
+
+
+def test_queries_can_be_scoped_to_current_capture():
+    database = PacketDatabase(":memory:")
+
+    old_packet = PacketRecord(
+        "10.0.0.1",
+        "10.0.0.2",
+        "TCP",
+        500,
+    )
+
+    database.insert_packet(old_packet)
+
+    start_id = database.get_last_packet_id()
+
+    new_packets = [
+        PacketRecord(
+            "192.168.1.1",
+            "8.8.8.8",
+            "UDP",
+            100,
+        ),
+        PacketRecord(
+            "192.168.1.1",
+            "8.8.8.8",
+            "UDP",
+            200,
+        ),
+    ]
+
+    for packet in new_packets:
+        database.insert_packet(packet)
+
+    assert database.count_packets() == 3
+
+    assert (
+        database.count_packets(
+            after_id=start_id
+        )
+        == 2
+    )
+
+    results = database.top_source_ips(
+        after_id=start_id
+    )
+
+    assert len(results) == 1
+    assert (
+        results[0]["source_ip"]
+        == "192.168.1.1"
+    )
+    assert results[0]["packet_count"] == 2
+    assert results[0]["total_bytes"] == 300
 
     database.close()

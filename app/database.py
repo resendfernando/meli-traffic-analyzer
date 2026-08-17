@@ -74,57 +74,98 @@ class PacketDatabase:
 
         return cursor.lastrowid
 
-    def count_packets(self) -> int:
+    def get_last_packet_id(self) -> int:
         cursor = self.connection.execute(
-            "SELECT COUNT(*) AS total FROM packets"
+            """
+            SELECT COALESCE(MAX(id), 0) AS last_id
+            FROM packets
+            """
+        )
+
+        row = cursor.fetchone()
+
+        return row["last_id"]
+
+    def count_packets(self, after_id: int = 0) -> int:
+        cursor = self.connection.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM packets
+            WHERE id > ?
+            """,
+            (after_id,),
         )
 
         row = cursor.fetchone()
 
         return row["total"]
 
-    def count_by_protocol(self) -> list[sqlite3.Row]:
+    def count_by_protocol(
+        self,
+        after_id: int = 0,
+    ) -> list[sqlite3.Row]:
         cursor = self.connection.execute(
             """
             SELECT
                 protocol,
-                COUNT(*) AS packet_count
+                COUNT(*) AS packet_count,
+                SUM(packet_size) AS total_bytes
             FROM packets
+            WHERE id > ?
             GROUP BY protocol
             ORDER BY packet_count DESC, protocol ASC
-            """
+            """,
+            (after_id,),
         )
 
         return cursor.fetchall()
 
-    def top_source_ips(self, limit: int = 5) -> list[sqlite3.Row]:
+    def top_source_ips(
+        self,
+        limit: int = 5,
+        after_id: int = 0,
+    ) -> list[sqlite3.Row]:
         cursor = self.connection.execute(
             """
             SELECT
                 source_ip,
-                COUNT(*) AS packet_count
+                COUNT(*) AS packet_count,
+                SUM(packet_size) AS total_bytes
             FROM packets
+            WHERE id > ?
             GROUP BY source_ip
-            ORDER BY packet_count DESC, source_ip ASC
+            ORDER BY
+                total_bytes DESC,
+                packet_count DESC,
+                source_ip ASC
             LIMIT ?
             """,
-            (limit,),
+            (after_id, limit),
         )
 
         return cursor.fetchall()
 
-    def top_destination_ips(self, limit: int = 5) -> list[sqlite3.Row]:
+    def top_destination_ips(
+        self,
+        limit: int = 5,
+        after_id: int = 0,
+    ) -> list[sqlite3.Row]:
         cursor = self.connection.execute(
             """
             SELECT
                 destination_ip,
-                COUNT(*) AS packet_count
+                COUNT(*) AS packet_count,
+                SUM(packet_size) AS total_bytes
             FROM packets
+            WHERE id > ?
             GROUP BY destination_ip
-            ORDER BY packet_count DESC, destination_ip ASC
+            ORDER BY
+                total_bytes DESC,
+                packet_count DESC,
+                destination_ip ASC
             LIMIT ?
             """,
-            (limit,),
+            (after_id, limit),
         )
 
         return cursor.fetchall()

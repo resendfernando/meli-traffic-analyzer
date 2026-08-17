@@ -1,0 +1,22 @@
+services:
+  traffic-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    network_mode: host
+
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+    volumes:
+      - ./data:/app/data
+
+    command:
+      - --interface
+      - wlp0s20f3
+      - --duration
+      - "30"
+      - --database
+      - /app/data/traffic.db

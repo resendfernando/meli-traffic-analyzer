@@ -8,6 +8,25 @@ from app.database import PacketDatabase
 from app.report import print_report
 
 
+def positive_int(value: str) -> int:
+    """
+    Parse a command-line argument that must be a positive integer.
+    """
+    try:
+        parsed_value = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "value must be a positive integer"
+        ) from exc
+
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError(
+            "value must be greater than zero"
+        )
+
+    return parsed_value
+
+
 def get_available_interfaces() -> list[str]:
     return get_if_list()
 
@@ -230,7 +249,7 @@ def parse_args():
 
     capture_mode.add_argument(
         "--count",
-        type=int,
+        type=positive_int,
         help=(
             "Stop after capturing this "
             "number of packets."
@@ -239,7 +258,7 @@ def parse_args():
 
     capture_mode.add_argument(
         "--duration",
-        type=int,
+        type=positive_int,
         help=(
             "Capture traffic for this "
             "number of seconds."

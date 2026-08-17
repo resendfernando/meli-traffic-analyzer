@@ -2,11 +2,66 @@
 
 Aplicação em Python para captura, persistência e análise básica de tráfego de rede.
 
-A solução captura pacotes de uma interface especificada, normaliza os dados relevantes, persiste as evidências em SQLite e apresenta automaticamente estatísticas sobre o tráfego observado.
+A solução captura pacotes de uma interface de rede, normaliza os dados relevantes, persiste as evidências em SQLite e apresenta automaticamente estatísticas sobre o tráfego observado.
 
 ---
 
-## Visão rápida
+# Quick Start
+
+Para o caminho mais simples:
+
+```bash
+docker compose up --build
+```
+
+A aplicação:
+
+1. detecta automaticamente uma interface de rede adequada;
+2. captura tráfego durante 30 segundos;
+3. persiste os pacotes em SQLite;
+4. gera o relatório da captura;
+5. encerra normalmente.
+
+Exemplo:
+
+```text
+Auto-detected interface: wlp0s20f3
+Capturing IP traffic on 'wlp0s20f3' for 30 seconds...
+Database: /app/data/traffic.db
+
+Capture finished.
+Packets captured this run: 153
+Packets stored this run: 153
+
+=== Current Capture Summary ===
+
+Total packets: 153
+
+Packets by protocol:
+  TCP              82 packets (28.87 KiB)
+  UDP              71 packets (29.72 KiB)
+
+Top 5 source IPs by traffic volume:
+  ...
+
+Top 5 destination IPs by traffic volume:
+  ...
+```
+
+Não é necessário editar o `compose.yaml` para o uso padrão.
+
+---
+
+# O que a aplicação responde
+
+Ao final de cada captura:
+
+1. Quantos pacotes foram capturados?
+2. Quais protocolos foram observados?
+3. Quais IPs de origem movimentaram maior volume?
+4. Quais IPs de destino movimentaram maior volume?
+
+Fluxo:
 
 ```text
 Network Interface
@@ -24,48 +79,18 @@ Aggregations
 Traffic Summary
 ```
 
-A aplicação responde rapidamente a quatro perguntas:
-
-1. Quantos pacotes foram capturados?
-2. Quais protocolos foram observados?
-3. Quais IPs de origem movimentaram mais tráfego?
-4. Quais IPs de destino movimentaram mais tráfego?
-
----
-
-## Resultado
-
-A aplicação foi validada com tráfego real dentro do Docker.
-
-Exemplo de uma execução:
-
-```text
-Packets captured this run: 243
-Packets stored this run: 243
-
-=== Current Capture Summary ===
-
-Total packets: 243
-
-Packets by protocol:
-  TCP             148 packets (111.52 KiB)
-  UDP              87 packets (39.74 KiB)
-  ICMP              8 packets (784 B)
-```
-
-Além da validação funcional, o projeto possui testes automatizados cobrindo captura, normalização, persistência e agregações.
-
 ---
 
 # Requisitos atendidos
 
 | Requisito | Implementação |
 |---|---|
-| Capturar interface especificada | Scapy + CLI |
-| IP de origem | Sim |
-| IP de destino | Sim |
-| Protocolo | Sim |
-| Tamanho do pacote | Sim |
+| Capturar interface de rede | Scapy |
+| Interface especificável | `--interface` |
+| IP de origem | IPv4 + IPv6 |
+| IP de destino | IPv4 + IPv6 |
+| Protocolo | TCP / UDP / ICMP / ICMPv6 + fallback |
+| Tamanho do pacote | `packet_size` |
 | Total de pacotes | Sim |
 | Pacotes por protocolo | Sim |
 | Top 5 IPs de origem | Sim |
@@ -89,135 +114,81 @@ Além da validação funcional, o projeto possui testes automatizados cobrindo c
 
 ---
 
-# Execução rápida
+# Interface de rede
 
-## 1. Identificar a interface
+## Detecção automática
+
+Quando `--interface` não é informado, a aplicação tenta identificar automaticamente uma interface adequada.
+
+A estratégia preferencial utiliza a interface associada à rota IPv4 padrão.
+
+Se isso não for possível, a aplicação tenta selecionar uma interface não-loopback e evita interfaces virtuais comuns.
+
+A interface escolhida é informada antes da captura:
+
+```text
+Auto-detected interface: eth0
+```
+
+## Interface explícita
+
+Quando necessário, é possível escolher manualmente:
+
+```bash
+docker compose run --rm traffic-analyzer \
+  --interface eth0 \
+  --duration 30
+```
+
+Isso sobrescreve a autodetecção.
+
+Para listar as interfaces no Linux:
 
 ```bash
 ip -br addr
 ```
 
-Exemplo:
-
-```text
-wlp0s20f3    UP    192.168.100.223/24
-```
-
-O nome da interface varia de acordo com o host.
-
 ---
 
-## 2. Configurar a interface
-
-O `compose.yaml` contém o argumento:
-
-```text
---interface
-```
-
-Ajuste o valor para uma interface existente no host.
-
----
-
-## 3. Construir
-
-```bash
-docker compose build
-```
-
-Quando for necessário garantir uma reconstrução completa:
-
-```bash
-docker compose build --no-cache
-```
-
----
-
-## 4. Executar
-
-```bash
-docker compose run --rm traffic-analyzer
-```
-
-Por padrão, a aplicação captura tráfego durante 30 segundos.
-
-Ao final, os pacotes são persistidos e o resumo é exibido automaticamente.
-
----
-
-# Exemplo de saída
-
-```text
-Capturing IP traffic on 'wlp0s20f3' for 30 seconds...
-Database: /app/data/traffic.db
-
-Capture finished.
-Packets captured this run: 243
-Packets stored this run: 243
-
-=== Current Capture Summary ===
-
-Total packets: 243
-
-Packets by protocol:
-  TCP             148 packets (111.52 KiB)
-  UDP              87 packets (39.74 KiB)
-  ICMP              8 packets (784 B)
-
-Top 5 source IPs by traffic volume:
-  1. ... 66.90 KiB (81 packets)
-  2. ...
-  3. ...
-  4. ...
-  5. ...
-
-Top 5 destination IPs by traffic volume:
-  1. ... 58.24 KiB (39 packets)
-  2. ...
-  3. ...
-  4. ...
-  5. ...
-```
-
----
-
-# Outras formas de execução
+# Modos de captura
 
 ## Por duração
 
 ```bash
 docker compose run --rm traffic-analyzer \
-  --interface wlp0s20f3 \
-  --duration 60 \
-  --database /app/data/traffic.db
+  --interface eth0 \
+  --duration 60
 ```
-
----
 
 ## Por quantidade
 
 ```bash
 docker compose run --rm traffic-analyzer \
-  --interface wlp0s20f3 \
-  --count 100 \
-  --database /app/data/traffic.db
+  --interface eth0 \
+  --count 100
 ```
 
 `--duration` e `--count` são mutuamente exclusivos.
 
-Quando nenhum deles é informado, a aplicação utiliza 30 segundos.
+Quando nenhum deles é informado, a aplicação utiliza:
+
+```text
+30 segundos
+```
 
 ---
 
-## Saída detalhada
+# Saída detalhada
 
-Por padrão, cada pacote individual não é exibido.
+Por padrão, os pacotes individuais não são impressos no terminal.
 
-Para diagnóstico:
+Isso reduz ruído e mantém o foco no resumo operacional.
+
+Para visualizar cada registro:
 
 ```bash
 docker compose run --rm traffic-analyzer \
-  --interface wlp0s20f3 \
+  --interface eth0 \
   --duration 30 \
   --verbose
 ```
@@ -226,7 +197,7 @@ docker compose run --rm traffic-analyzer \
 
 # Dados capturados
 
-Cada pacote IP é normalizado para:
+Cada pacote IPv4 ou IPv6 é normalizado para:
 
 ```text
 PacketRecord
@@ -236,13 +207,45 @@ PacketRecord
 └── packet_size
 ```
 
-Também é armazenado:
+Também é persistido:
 
 ```text
 captured_at
 ```
 
-Pacotes sem IPv4 ou IPv6 são ignorados porque não possuem os endereços IP exigidos pelo contrato da aplicação.
+Frames não-IP não fazem parte das estatísticas porque não possuem os endereços IP exigidos pelo escopo do desafio.
+
+Portanto:
+
+```text
+Total packets
+```
+
+representa os pacotes IPv4 e IPv6 processados pelo filtro da aplicação.
+
+---
+
+# Protocolos
+
+A aplicação reconhece diretamente:
+
+```text
+TCP
+UDP
+ICMP
+ICMPv6
+```
+
+Outros protocolos IP continuam sendo registrados utilizando seu identificador numérico.
+
+Exemplos:
+
+```text
+IP-2
+IPv6-50
+```
+
+Isso evita descartar tráfego IP que não tenha um nome explicitamente mapeado.
 
 ---
 
@@ -276,74 +279,97 @@ CREATE INDEX IF NOT EXISTS idx_packets_destination_ip
 ON packets(destination_ip);
 ```
 
-SQLite foi escolhido porque atende ao requisito de persistência sem introduzir infraestrutura adicional desnecessária para o escopo atual.
+SQLite foi escolhido porque atende ao requisito de persistência sem introduzir um serviço externo de banco de dados para o escopo atual.
 
 ---
 
-# Definição de "mais tráfego"
+# Persistência dos dados
 
-O ranking dos IPs utiliza volume transferido:
-
-```sql
-SUM(packet_size)
-```
-
-como critério principal.
-
-A quantidade de pacotes também é apresentada.
-
-Isso permite distinguir:
-
-```text
-muitos pacotes pequenos
-```
-
-de:
-
-```text
-menos pacotes movimentando maior volume
-```
-
-A decisão completa está documentada em:
-
-[ADR 0003 — Classificar tráfego pelo volume em bytes](docs/adr/0003-rank-traffic-by-bytes.md)
-
----
-
-# Persistência
-
-O diretório:
+No host:
 
 ```text
 ./data
 ```
 
-é montado no container em:
+é montado no container como:
 
 ```text
 /app/data
 ```
 
-O banco padrão é:
+Banco padrão:
 
 ```text
 data/traffic.db
 ```
 
-Assim, os dados permanecem no host mesmo depois que o container termina.
+Os dados permanecem disponíveis mesmo após o encerramento do container.
 
 ---
 
-# Consultar os dados
+# Definição de "mais tráfego"
 
-Quantidade total:
+Os Top 5 são classificados pelo volume total movimentado:
+
+```sql
+SUM(packet_size)
+```
+
+A quantidade de pacotes também é exibida.
+
+Exemplo:
+
+```text
+IP A → 100 pacotes → 10 KiB
+IP B →  20 pacotes → 80 KiB
+```
+
+Nesse cenário, o IP B aparece primeiro porque movimentou maior volume.
+
+Detalhes:
+
+[ADR 0003 — Classificar tráfego pelo volume em bytes](docs/adr/0003-rank-traffic-by-bytes.md)
+
+---
+
+# Captura atual x histórico
+
+O banco pode conter várias execuções.
+
+Por isso existem dois contextos:
+
+```text
+Current Capture Summary
+        ↓
+somente os pacotes da execução atual
+```
+
+e:
+
+```text
+Historical Report
+        ↓
+todos os registros existentes no banco
+```
+
+A separação evita que dados antigos alterem as estatísticas de uma nova captura.
+
+Detalhes:
+
+[ADR 0006 — Isolar a captura atual do histórico](docs/adr/0006-isolate-current-capture.md)
+
+---
+
+# Consultar o banco
+
+Total de registros:
 
 ```bash
 sqlite3 data/traffic.db \
 "SELECT COUNT(*) FROM packets;"
 ```
 
-Últimos pacotes:
+Últimos registros:
 
 ```bash
 sqlite3 data/traffic.db \
@@ -362,31 +388,17 @@ sqlite3 data/traffic.db \
 
 # Relatório histórico
 
-Também é possível analisar todo o banco posteriormente:
+Para analisar todo o banco:
 
 ```bash
 python -m app.report --database data/traffic.db
 ```
 
-Existe uma diferença intencional:
-
-```text
-Current Capture Summary
-        ↓
-somente a execução atual
-
-Historical Report
-        ↓
-todo o banco
-```
-
-Isso impede que capturas anteriores contaminem as estatísticas da execução corrente.
-
 ---
 
-# Testes
+# Desenvolvimento local
 
-Crie e ative o ambiente:
+Crie o ambiente:
 
 ```bash
 python3 -m venv .venv
@@ -402,7 +414,25 @@ pip install -r requirements.txt
 Execute:
 
 ```bash
-pytest -v
+sudo .venv/bin/python -m app.sniffer \
+  --interface eth0 \
+  --duration 30
+```
+
+Também é possível usar autodetecção:
+
+```bash
+sudo .venv/bin/python -m app.sniffer
+```
+
+---
+
+# Testes
+
+Execute:
+
+```bash
+pytest -q
 ```
 
 A suíte cobre:
@@ -413,67 +443,120 @@ A suíte cobre:
 - UDP;
 - ICMP;
 - ICMPv6;
-- tráfego não IP;
-- persistência;
+- descarte de tráfego não-IP;
+- criação e persistência no banco;
 - múltiplos registros;
-- agregações;
+- agregação por protocolo;
 - ranking por bytes;
-- isolamento entre histórico e captura atual.
+- isolamento da captura atual.
+
+Além dos testes automatizados, a solução foi validada com tráfego real dentro do Docker.
+
+---
+
+# Validação funcional
+
+Para gerar tráfego controlado durante uma captura:
+
+```bash
+ping -c 4 8.8.8.8
+```
+
+```bash
+nslookup mercadolivre.com 8.8.8.8
+```
+
+```bash
+curl -4 https://www.google.com > /dev/null
+```
+
+Um dos principais invariantes operacionais é:
+
+```text
+Packets captured this run
+==
+Packets stored this run
+```
+
+---
+
+# Segurança
+
+Para capturar tráfego do host Linux, o container utiliza:
+
+```yaml
+network_mode: host
+```
+
+e:
+
+```yaml
+cap_add:
+  - NET_RAW
+  - NET_ADMIN
+```
+
+A escolha evita utilizar um container completamente privilegiado.
+
+Essas permissões devem ser reavaliadas antes de uma eventual implantação produtiva.
+
+A aplicação não armazena payload.
+
+Somente:
+
+```text
+timestamp
+source IP
+destination IP
+protocol
+packet size
+```
+
+---
+
+# Limitações atuais
+
+A solução foi dimensionada para capturas pontuais e troubleshooting.
+
+Limitações conhecidas:
+
+- SQLite como armazenamento local;
+- commit individual por pacote;
+- ausência de política automática de retenção;
+- ausência de fila assíncrona;
+- ausência de processamento distribuído;
+- ausência de monitoramento externo;
+- captura limitada ao tráfego visível na interface selecionada.
+
+Esses limites são documentados e não impedem o atendimento ao escopo atual.
 
 ---
 
 # Documentação
 
-O projeto utiliza documentação em níveis diferentes para permitir leitura rápida ou aprofundamento conforme a necessidade.
+A documentação está organizada para diferentes níveis de leitura.
 
-## Quero entender o projeto rapidamente
+## Visão rápida para liderança
 
 [Resumo Executivo](docs/executive-summary.md)
 
-Explica:
+Problema, solução, resultado, impacto e limitações.
 
-- o problema;
-- a solução;
-- impacto;
-- resultado;
-- limitações;
-- próximos passos.
-
----
-
-## Quero entender como a solução funciona
+## Arquitetura
 
 [Arquitetura](docs/architecture.md)
 
-Apresenta:
+Componentes, fluxo, dados e limites técnicos.
 
-- componentes;
-- fluxo dos dados;
-- banco;
-- responsabilidades;
-- segurança;
-- escalabilidade.
-
----
-
-## Quero conhecer as principais decisões
+## Decisões principais
 
 [Resumo das Decisões de Arquitetura](docs/architecture-decisions.md)
 
-Permite visualizar rapidamente:
+Leitura curta das escolhas mais relevantes.
 
-- decisões;
-- justificativas;
-- trade-offs;
-- pontos de revisão.
-
----
-
-## Quero entender por que cada decisão foi tomada
+## Decisões detalhadas
 
 [Architecture Decision Records](docs/adr/README.md)
-
-ADRs disponíveis:
 
 - [ADR 0001 — Python + Scapy](docs/adr/0001-use-python-and-scapy.md)
 - [ADR 0002 — SQLite](docs/adr/0002-use-sqlite.md)
@@ -482,56 +565,27 @@ ADRs disponíveis:
 - [ADR 0005 — Host networking](docs/adr/0005-use-host-networking.md)
 - [ADR 0006 — Isolamento da captura](docs/adr/0006-isolate-current-capture.md)
 
----
-
-## Quero saber como validamos
+## Estratégia de validação
 
 [Estratégia de Testes](docs/testing-strategy.md)
 
-Descreve:
+Como a solução é validada em diferentes camadas.
 
-- testes unitários;
-- persistência;
-- agregações;
-- Docker;
-- validação funcional;
-- tráfego real;
-- regressões.
+## Operação
 
----
+[Runbook](docs/runbook.md)
 
-## Quero executar ou diagnosticar
+Execução, diagnóstico e troubleshooting.
 
-[Runbook Operacional](docs/runbook.md)
-
-Contém:
-
-- configuração;
-- execução;
-- validação;
-- troubleshooting;
-- escalonamento.
-
----
-
-## Quero avaliar uso em produção
+## Evolução
 
 [Prontidão para Produção](docs/production-readiness.md)
 
-Apresenta:
-
-- limites atuais;
-- riscos;
-- performance;
-- segurança;
-- observabilidade;
-- retenção;
-- confiabilidade;
-- possíveis caminhos de evolução.
+Limites atuais e critérios para evolução.
 
 ---
 
-# Estrutura do projeto
+# Estrutura
 
 ```text
 .
@@ -541,10 +595,8 @@ Apresenta:
 │   ├── database.py
 │   ├── report.py
 │   └── sniffer.py
-│
 ├── data/
 │   └── .gitkeep
-│
 ├── docs/
 │   ├── adr/
 │   │   ├── README.md
@@ -554,18 +606,15 @@ Apresenta:
 │   │   ├── 0004-support-ipv4-and-ipv6.md
 │   │   ├── 0005-use-host-networking.md
 │   │   └── 0006-isolate-current-capture.md
-│   │
 │   ├── architecture-decisions.md
 │   ├── architecture.md
 │   ├── executive-summary.md
 │   ├── production-readiness.md
 │   ├── runbook.md
 │   └── testing-strategy.md
-│
 ├── tests/
 │   ├── test_capture.py
 │   └── test_database.py
-│
 ├── .dockerignore
 ├── .gitignore
 ├── compose.yaml
@@ -577,70 +626,22 @@ Apresenta:
 
 ---
 
-# Principais decisões
+# Princípio da solução
 
-A solução priorizou:
-
-```text
-Aderência ao requisito
-        +
-Simplicidade
-        +
-Separação de responsabilidades
-        +
-Testabilidade
-        +
-Reprodutibilidade
-        +
-Operabilidade
-        +
-Transferência de conhecimento
-```
-
-Não foram adicionados componentes como filas, bancos externos, APIs ou plataformas de orquestração porque o requisito atual não os justifica.
-
-Os limites são conhecidos e os caminhos de evolução estão documentados.
-
----
-
-# Limitações atuais
-
-A implementação foi dimensionada para capturas pontuais e troubleshooting.
-
-Entre os limites conhecidos:
-
-- SQLite como armazenamento local;
-- commit individual por pacote;
-- ausência de política automática de retenção;
-- ausência de processamento distribuído;
-- ausência de observabilidade externa;
-- dependência das permissões da interface;
-- utilização de host networking para captura no Docker.
-
-Essas limitações estão detalhadas em:
-
-[Prontidão para Produção](docs/production-readiness.md)
-
----
-
-# Filosofia da solução
-
-A aplicação foi construída seguindo uma regra simples:
+A implementação segue uma regra simples:
 
 ```text
 Resolver o problema atual
         ↓
 Com a menor complexidade necessária
         ↓
-Deixar os trade-offs explícitos
+Tornar os trade-offs explícitos
         ↓
-Validar objetivamente
+Testar
         ↓
 Documentar
         ↓
-Evoluir somente quando houver necessidade
+Evoluir quando houver evidência
 ```
 
-O objetivo não é demonstrar complexidade técnica pela quantidade de componentes.
-
-É entregar uma solução que funcione, possa ser compreendida, validada, operada e evoluída por outras pessoas.
+O objetivo é entregar uma solução que funcione, seja simples de executar e possa ser compreendida, validada e evoluída por outra pessoa.

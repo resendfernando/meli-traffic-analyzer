@@ -14,8 +14,6 @@ services:
       - ./data:/app/data
 
     command:
-      - --interface
-      - wlp0s20f3
       - --duration
       - "30"
       - --database

@@ -1,15 +1,86 @@
 import argparse
 import sys
 
-from scapy.all import get_if_list, sniff
+from scapy.all import conf, get_if_list, sniff
 
 from app.capture import normalize_packet
 from app.database import PacketDatabase
 from app.report import print_report
 
 
+def get_available_interfaces() -> list[str]:
+    return get_if_list()
+
+
+def detect_interface() -> str:
+    """
+    Automatically select a network interface.
+
+    The preferred strategy is to use the interface associated with the
+    default IPv4 route. If that is not available, fall back to the first
+    non-loopback interface that does not look like a common container or
+    virtual bridge interface.
+    """
+
+    available_interfaces = get_available_interfaces()
+
+    try:
+        route_interface = conf.route.route("8.8.8.8")[0]
+
+        if (
+            route_interface
+            and route_interface in available_interfaces
+            and route_interface != "lo"
+        ):
+            return route_interface
+
+    except Exception:
+        pass
+
+    ignored_prefixes = (
+        "lo",
+        "docker",
+        "br-",
+        "veth",
+    )
+
+    candidates = [
+        interface
+        for interface in available_interfaces
+        if not interface.startswith(ignored_prefixes)
+    ]
+
+    if candidates:
+        return candidates[0]
+
+    print(
+        "\nERROR: No suitable network interface "
+        "could be detected automatically.\n",
+        file=sys.stderr,
+    )
+
+    print(
+        "Available interfaces:",
+        file=sys.stderr,
+    )
+
+    for interface in available_interfaces:
+        print(
+            f"  - {interface}",
+            file=sys.stderr,
+        )
+
+    print(
+        "\nSpecify an interface explicitly using "
+        "--interface.",
+        file=sys.stderr,
+    )
+
+    raise SystemExit(2)
+
+
 def validate_interface(interface: str) -> None:
-    available_interfaces = get_if_list()
+    available_interfaces = get_available_interfaces()
 
     if interface not in available_interfaces:
         print(
@@ -127,10 +198,11 @@ def parse_args():
 
     parser.add_argument(
         "--interface",
-        required=True,
+        required=False,
         help=(
-            "Network interface used "
-            "for packet capture."
+            "Network interface used for packet capture. "
+            "If omitted, the application attempts to "
+            "detect the interface automatically."
         ),
     )
 
@@ -187,8 +259,23 @@ def main():
         duration = 30
 
     try:
+        if args.interface:
+            interface = args.interface
+
+            print(
+                f"Using requested interface: "
+                f"{interface}"
+            )
+        else:
+            interface = detect_interface()
+
+            print(
+                f"Auto-detected interface: "
+                f"{interface}"
+            )
+
         capture(
-            interface=args.interface,
+            interface=interface,
             database_path=args.database,
             count=count,
             duration=duration,

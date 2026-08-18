@@ -604,6 +604,12 @@ Leitura curta das escolhas mais relevantes.
 
 Como a solução é validada em diferentes camadas.
 
+## Teste de aceitação
+
+[Teste de Aceitação e Compatibilidade](docs/acceptance-test.md)
+
+Validação da solução a partir de clone limpo, incluindo execução em Linux, Windows com Docker Desktop, persistência, testes automatizados e considerações sobre visibilidade de rede em ambientes virtualizados.
+
 ## Operação
 
 [Runbook](docs/runbook.md)
@@ -642,6 +648,7 @@ Limites atuais e critérios para evolução.
 │   │   ├── 0004-support-ipv4-and-ipv6.md
 │   │   ├── 0005-use-host-networking.md
 │   │   └── 0006-isolate-current-capture.md
+│   ├── acceptance-test.md
 │   ├── architecture-decisions.md
 │   ├── architecture.md
 │   ├── challenge-02-adversarial-tests.md

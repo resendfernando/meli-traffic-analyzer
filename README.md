@@ -4,7 +4,9 @@
 >
 > Este README documenta a implementação do primeiro exercício do desafio técnico.
 >
-> **Challenge 02:** [AI-Assisted Infrastructure Log Analysis](docs/QUESTION-02-AI-LOG-ANALYSIS.md)
+> **Challenge 02:** [Prompt para Análise de Logs de Infraestrutura](docs/challenge-02-ai-log-analysis.md)
+>
+> **Validação adversarial:** [Testes adversariais do Challenge 02](docs/challenge-02-adversarial-tests.md)
 
 Aplicação em Python para captura, persistência e análise básica de tráfego de rede.
 
@@ -557,6 +559,16 @@ Esses limites são documentados e não impedem o atendimento ao escopo atual.
 
 A documentação está organizada para diferentes níveis de leitura.
 
+## Challenge 02 — Análise de Logs com IA
+
+[Prompt para Análise de Logs de Infraestrutura](docs/challenge-02-ai-log-analysis.md)
+
+Contém o prompt completo, log de exemplo, resposta esperada e as principais decisões adotadas na construção da solução.
+
+[Validação Adversarial do Prompt](docs/challenge-02-adversarial-tests.md)
+
+Documenta os oito cenários adversariais utilizados para avaliar robustez, segurança, tratamento de evidências, causalidade, severidade e comportamento diante de dados incompletos.
+
 ## Visão rápida para liderança
 
 [Resumo Executivo](docs/executive-summary.md)
@@ -610,6 +622,9 @@ Limites atuais e critérios para evolução.
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── app/
 │   ├── __init__.py
 │   ├── capture.py
@@ -629,9 +644,10 @@ Limites atuais e critérios para evolução.
 │   │   └── 0006-isolate-current-capture.md
 │   ├── architecture-decisions.md
 │   ├── architecture.md
+│   ├── challenge-02-adversarial-tests.md
+│   ├── challenge-02-ai-log-analysis.md
 │   ├── executive-summary.md
 │   ├── production-readiness.md
-│   ├── QUESTION-02-AI-LOG-ANALYSIS.md
 │   ├── runbook.md
 │   └── testing-strategy.md
 ├── tests/
